@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        #dealer, #player, #bet{
+            border: 1px solid black;
+            width: 520px;
+            padding: 10px;
+            height: 100px;
+            display: inline-block;
+        }
+    </style>
+    <script type="text/javascript">
+        class Card {
+            constructor(suit, num){
+                this.suit = suit;
+                this.num = num;
+            }
+        }
+        class Deck {
+            constructor(){
+                this.deck = [];
+            }
+
+            build(){
+                let suit = ['s', 'h', 'c', 'd']; //Spade, Heart, Club, Diamond
+                for (let i = 0; i < suit.length; i++){
+                    for (let j = 1; j < 14; j++){
+                        switch (j){
+                            case 11:
+                                this.deck.push(new Card(suit[i], 'J'));
+                                break;
+                            case 12:
+                                this.deck.push(new Card(suit[i], 'Q'));
+                                break;
+                            case 13:
+                                this.deck.push(new Card(suit[i], 'K'));
+                                break;
+                            default:
+                                this.deck.push(new Card(suit[i], j));
+                                break;
+                        }
+                    }
+                }
+                return this
+            }
+
+            showdeck(){
+                for(let i = 0; i < this.deck.length; i++){
+                    console.log(`Suit: ${this.deck[i].suit} Num: ${this.deck[i].num}`);
+                }
+            }
+
+            shuffle(){
+                for (let i = this.deck.length - 1; i > 0; i--){
+                    let temp = this.deck[i],
+                        randomposition = Math.floor(Math.random() * i);
+                    this.deck[i] = this.deck[randomposition];
+                    this.deck[randomposition] = temp;
+                }
+                return this
+            }
+
+            reset(){
+                this.deck = [];
+                this.build();
+                return this
+            }
+
+            deal(){
+                return this.deck.pop()
+            }
+        }
+
+        let deck = new Deck();
+        deck.build().shuffle();
+
+        class Player {
+            constructor(name){
+                this.name = name;
+                this.hand = [];
+            }
+            draw(){
+                this.hand.push(deck.deal());
+                return this
+            }
+            discard(index){
+                this.hand.splice(index, 1);
+                return this
+            }
+            showhand(){
+                for(let i = 0; i < this.hand.length; i++){
+                    console.log(`${this.hand[i].suit}  ${this.hand[i].num}`)
+                }
+            }
+        }
+
+        let dealer = new Player('dealer'), player = new Player('player');
+
+        function newgame() {
+            document.getElementById('dealer').innerHTML = '';
+            document.getElementById('player').innerHTML = '';
+            document.getElementById('info').innerHTML = '';
+
+            dealer.hand = [];
+            player.hand = [];
+            deck.reset().shuffle().shuffle();
+            // dealer got one card
+            dealer.draw();
+            // player get one
+            player.draw();
+            // dealer got one card but player cant see it
+            dealer.draw();
+            //player get one
+            player.draw();
+            //show dealer
+            let card = document.createElement("img"),
+                cardsource = './cards/' + dealer.hand[0].suit + dealer.hand[0].num + '.png';
+            card.src = cardsource;
+            document.getElementById('dealer').appendChild(card);
+
+            let hiddencard = document.createElement("img");
+            hiddencard.src = './cards/b2fv.png';
+            document.getElementById('dealer').appendChild(hiddencard);
+
+            //show player
+            for (let i = 0; i < player.hand.length; i ++){
+                let card = document.createElement("img"),
+                    cardsource = './cards/' + player.hand[i].suit + player.hand[i].num + '.png';
+                card.src = cardsource;
+                document.getElementById('player').appendChild(card);
+            }
+        }
+
+        function hit() {
+            player.draw();
+            let newcard = player.hand[player.hand.length - 1],
+                card = document.createElement("img"),
+                cardsource = './cards/' + newcard.suit + newcard.num + '.png';
+            card.src = cardsource;
+            document.getElementById('player').appendChild(card);
+            playerhandvalidate();
+        }
+
+        function playerhandvalidate() {
+            let sum = 0, sum2 = 0;
+            for (let i = 0; i < player.hand.length; i++){
+                if (player.hand[i].num === 1){
+                    sum2 += 11;
+                    sum += 1;
+                }
+                else {
+                    switch (player.hand[i].num){
+                        case 'J':
+                            sum += 10;
+                            sum2 += 10;
+                            break;
+                        case 'Q':
+                            sum += 10;
+                            sum2 += 10;
+                            break;
+                        case 'K':
+                            sum += 10;
+                            sum2 += 10;
+                            break;
+                        default:
+                            sum += player.hand[i].num;
+                            sum2 += player.hand[i].num;
+                            break;
+                    }
+                }
+            }
+            if (sum > 21 && sum2 > 21){
+                document.getElementById('info').innerHTML = "<h1>blasted, you lost</h1>";
+            }
+            return [sum, sum2]
+        }
+
+        function stand() {
+            fliphiddencard();
+            //if any sum from dealer less than 17, dealer needs draw card
+            let result = dealerhandvalidate();
+            if (result[1] === 21){
+                document.getElementById('info').innerHTML = "<h1>Blackjack! dealer wins</h1>"
+            }
+            else {
+                while (result[0] < 17 || result[1] < 18){
+                    dealer.draw();
+                    let newcard = dealer.hand[dealer.hand.length - 1],
+                        card = document.createElement("img"),
+                        cardsource = './cards/' + newcard.suit + newcard.num + '.png';
+                    card.src = cardsource;
+                    document.getElementById('dealer').appendChild(card);
+                    result = dealerhandvalidate();
+                }
+            }
+            if (result[0] > 21 && result[1] > 21){
+                document.getElementById('info').innerHTML = "<h1>dealer blasted! Congratulations! YOU WIN!</h1>";
+            }
+            else {
+                let playersum = findmax(playerhandvalidate()), dealersum = findmax(result);
+                if (playersum > dealersum){
+                    //player win
+                    document.getElementById('info').innerHTML = "<h1>Congratulations! YOU WIN!</h1>"
+                }
+                else if (playersum === dealersum){
+                    document.getElementById('info').innerHTML = "<h1>Tie!</h1>"
+                }
+                else {
+                    //dealer win
+                    document.getElementById('info').innerHTML = "<h1>Sorry, you lost. Give another try?</h1>"
+                }
+            }
+
+        }
+
+        function findmax(arr) {
+            let max = arr[0];
+            for (let i = 0; i < arr.length; i++){
+                if (max < arr[i]){
+                    max = arr[i];
+                }
+            }
+            return max
+        }
+
+        function fliphiddencard() {
+            document.getElementById('dealer').innerHTML = '';
+            for (let i = 0; i < dealer.hand.length; i ++){
+                let card = document.createElement("img"),
+                    cardsource = './cards/' + dealer.hand[i].suit + dealer.hand[i].num + '.png';
+                card.src = cardsource;
+                document.getElementById('dealer').appendChild(card);
+            }
+        }
+
+        function dealerhandvalidate() {
+            let sum = 0, sum2 = 0;
+            for (let i = 0; i < dealer.hand.length; i++){
+                if (dealer.hand[i].num === 1){
+                    sum2 += 11;
+                    sum += 1;
+                }
+                else {
+                    switch (dealer.hand[i].num){
+                        case 'J':
+                            sum += 10;
+                            sum2 += 10;
+                            break;
+                        case 'Q':
+                            sum += 10;
+                            sum2 += 10;
+                            break;
+                        case 'K':
+                            sum += 10;
+                            sum2 += 10;
+                            break;
+                        default:
+                            sum += dealer.hand[i].num;
+                            sum2 += dealer.hand[i].num;
+                            break;
+                    }
+                }
+            }
+
+            return [sum, sum2]
+        }
+
+//        let bet = 100;
+//
+//        function showbet() {
+//
+//        }
+    </script>
+</head>
+<body>
+    <h1>Dealer:</h1>
+    <div id="dealer">
+
+    </div>
+    <!--<div id="bet">-->
+    <!--</div>-->
+    <br>
+    <div id="info">
+
+    </div>
+    <h1>Player:</h1>
+    <div id="player">
+
+    </div>
+
+    <br>
+    <button onclick="hit()">Hit</button>
+    <button onclick="stand()">Stand</button>
+    <button onclick="newgame()">Start game</button>
+</body>
+</html>
